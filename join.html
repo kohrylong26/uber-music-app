@@ -1,0 +1,107 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Joining ride…</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 24px; }
+    .card { max-width: 720px; margin: 0 auto; border: 1px solid #ddd; border-radius: 16px; padding: 20px; }
+    .muted { color: #666; }
+    button { padding: 10px 14px; border-radius: 10px; border: none; cursor: pointer; }
+    code { background: #f6f6f6; padding: 2px 6px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2 id="title">Joining…</h2>
+    <p id="msg" class="muted">Loading…</p>
+
+    <div style="margin-top: 14px;">
+      <button id="retryBtn" style="display:none;">Try again</button>
+    </div>
+
+    <p class="muted" style="margin-top:16px;">
+      Driver: <code id="driverCode">—</code>
+    </p>
+  </div>
+
+  <script>
+    // ✅ IMPORTANT: For local testing keep this:
+    // const API_BASE = "http://localhost:3001";
+    //
+    // When you deploy your backend later, change it to:
+    // const API_BASE = "https://your-backend-domain.com";
+    const API_BASE = "https://YOUR-BACKEND-URL";
+
+    const titleEl = document.getElementById("title");
+    const msgEl = document.getElementById("msg");
+    const retryBtn = document.getElementById("retryBtn");
+    const driverCodeEl = document.getElementById("driverCode");
+
+    const params = new URLSearchParams(window.location.search);
+    const driverId = params.get("driver");
+
+    driverCodeEl.textContent = driverId || "—";
+
+    function showRetry() {
+      retryBtn.style.display = "inline-block";
+    }
+
+    async function lookupActiveSession() {
+      retryBtn.style.display = "none";
+
+      if (!driverId) {
+        titleEl.textContent = "Invalid QR";
+        msgEl.textContent = "Missing driver id. Ask the driver to reprint their QR code.";
+        showRetry();
+        return;
+      }
+
+      titleEl.textContent = "Joining…";
+      msgEl.textContent = "Finding the driver’s active ride…";
+
+      try {
+        const url = API_BASE + "/api/drivers/" + encodeURIComponent(driverId) + "/active-session";
+        const res = await fetch(url);
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          titleEl.textContent = "Error";
+          msgEl.textContent = (data && data.error) ? data.error : "Could not look up the driver.";
+          showRetry();
+          return;
+        }
+
+        if (!data.sessionCode) {
+          titleEl.textContent = "No active ride yet";
+          msgEl.textContent = "The driver hasn’t started a ride yet. Please try again in a moment.";
+          showRetry();
+          return;
+        }
+
+        // ✅ Redirect passenger into the active session
+        const nextUrl = "passenger.html?sessionCode=" + encodeURIComponent(data.sessionCode);
+        msgEl.textContent = "Found ride. Redirecting…";
+        window.location.href = nextUrl;
+      } catch (e) {
+        titleEl.textContent = "Connection problem";
+        msgEl.textContent = "Could not connect to the server. Try again.";
+        showRetry();
+      }
+    }
+
+    retryBtn.addEventListener("click", lookupActiveSession);
+
+    // Auto-run once on load
+    lookupActiveSession();
+
+    // Optional: auto-retry every 3 seconds if no active ride
+    // Comment this out if you don’t want it.
+    setInterval(() => {
+      // Only auto-retry when we're in the "No active ride yet" state
+      if (titleEl.textContent === "No active ride yet") lookupActiveSession();
+    }, 3000);
+  </script>
+</body>
+</html>

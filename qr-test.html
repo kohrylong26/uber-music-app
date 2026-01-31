@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>QR Test</title>
+</head>
+<body>
+  <h1>QR Test</h1>
+  <div id="qrcode"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <script>
+    console.log("QR test running");
+
+    new QRCode(document.getElementById("qrcode"), {
+      text: "https://google.com",
+      width: 200,
+      height: 200
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,133 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Driver Home</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 24px; }
+    button { padding: 10px 14px; margin-right: 10px; border-radius: 10px; border: none; cursor: pointer; }
+    .row { margin: 10px 0; }
+    code { background: #f6f6f6; padding: 2px 6px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <h1>Driver Home</h1>
+
+  <div class="row"><strong>Driver ID:</strong> <span id="driverIdText"></span></div>
+  <div class="row"><strong>Status:</strong> <span id="statusText">Loading…</span></div>
+  <div class="row"><strong>Active Session Code:</strong> <span id="rideIdText">—</span></div>
+
+  <button id="startBtn">Start Ride</button>
+  <button id="endBtn">End Ride</button>
+
+  <p style="margin-top:16px;">
+    <a href="driver-qr.html" target="_blank">Open Printable QR Page</a>
+  </p>
+
+  <script>
+    // ===== CONFIG =====
+    // For local dev, this is correct. Later you'll change to your deployed backend URL.
+    const API_BASE = "https://YOUR-BACKEND-URL";
+
+    // ===== ELEMENTS =====
+    const driverIdText = document.getElementById("driverIdText");
+    const statusText = document.getElementById("statusText");
+    const rideIdText = document.getElementById("rideIdText");
+    const startBtn = document.getElementById("startBtn");
+    const endBtn = document.getElementById("endBtn");
+
+    // ===== DRIVER ID (Permanent per driver / per browser) =====
+    function makeDriverId() {
+      return "DRV_" + Math.random().toString(36).substring(2, 8).toUpperCase();
+    }
+
+    function getOrCreateDriverId() {
+      let id = localStorage.getItem("driverId");
+      if (!id) {
+        id = makeDriverId();
+        localStorage.setItem("driverId", id);
+      }
+      return id;
+    }
+
+    const DRIVER_ID = getOrCreateDriverId();
+    driverIdText.innerText = DRIVER_ID;
+
+    // ===== ACTIVE SESSION (changes per ride) =====
+    function getActiveSessionCode() {
+      return localStorage.getItem("activeSessionCode");
+    }
+
+    function setActiveSessionCode(code) {
+      if (code) localStorage.setItem("activeSessionCode", code);
+      else localStorage.removeItem("activeSessionCode");
+    }
+
+    function updateUI() {
+      const code = getActiveSessionCode();
+      if (code) {
+        statusText.innerText = "ACTIVE ✅";
+        rideIdText.innerText = code;
+      } else {
+        statusText.innerText = "NOT ACTIVE ❌";
+        rideIdText.innerText = "—";
+      }
+    }
+
+    updateUI();
+
+    // ===== API CALLS =====
+    async function driverStartRide(driverId) {
+      const res = await fetch(`${API_BASE}/api/drivers/${encodeURIComponent(driverId)}/start`, {
+        method: "POST"
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((data && data.error) || "Failed to start ride");
+      return data; // { driverId, sessionCode }
+    }
+
+    async function driverEndRide(driverId) {
+      const res = await fetch(`${API_BASE}/api/drivers/${encodeURIComponent(driverId)}/end`, {
+        method: "POST"
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((data && data.error) || "Failed to end ride");
+      return data;
+    }
+
+    // ===== BUTTONS =====
+    startBtn.onclick = async () => {
+      try {
+        statusText.innerText = "Starting…";
+
+        const data = await driverStartRide(DRIVER_ID);
+        setActiveSessionCode(data.sessionCode);
+
+        updateUI();
+        alert("Ride started. Session code: " + data.sessionCode);
+      } catch (err) {
+        console.error(err);
+        setActiveSessionCode(null);
+        updateUI();
+        alert(err.message);
+      }
+    };
+
+    endBtn.onclick = async () => {
+      try {
+        statusText.innerText = "Ending…";
+
+        await driverEndRide(DRIVER_ID);
+        setActiveSessionCode(null);
+
+        updateUI();
+        alert("Ride ended");
+      } catch (err) {
+        console.error(err);
+        updateUI();
+        alert(err.message);
+      }
+    };
+  </script>
+</body>
+</html>

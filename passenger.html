@@ -1,0 +1,99 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Passenger</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 24px; }
+    input { padding: 10px; width: 100%; max-width: 520px; margin: 8px 0; border-radius: 10px; border: 1px solid #ddd; }
+    button { padding: 10px 14px; border-radius: 10px; border: none; cursor: pointer; }
+    .muted { color: #666; }
+    code { background: #f6f6f6; padding: 2px 6px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <h1>Passenger Controller</h1>
+
+  <p class="muted"><strong>Session:</strong> <code id="sessionText">—</code></p>
+
+  <input id="nameInput" placeholder="Your name (optional)" />
+  <input id="songInput" placeholder="Paste Spotify track link or spotify:track:..." />
+  <button id="addBtn">Add Song</button>
+
+  <p id="status" class="muted"></p>
+
+  <script>
+    // Local testing:
+    // - keep localhost
+    // Live/public later:
+    // - change to your deployed API URL (https://...)
+    const API_BASE = "https://YOUR-BACKEND-URL";
+
+    const sessionText = document.getElementById("sessionText");
+    const nameInput = document.getElementById("nameInput");
+    const songInput = document.getElementById("songInput");
+    const addBtn = document.getElementById("addBtn");
+    const statusEl = document.getElementById("status");
+
+    // Read sessionCode from URL (?sessionCode=XXXXXX)
+    const params = new URLSearchParams(window.location.search);
+    const sessionCode = params.get("sessionCode");
+
+    sessionText.textContent = sessionCode || "None";
+
+    function looksLikeSpotifyTrack(input) {
+      if (!input) return false;
+      const s = input.trim();
+      return (
+        s.indexOf("spotify:track:") === 0 ||
+        s.indexOf("open.spotify.com/track/") !== -1
+      );
+    }
+
+    async function addSong() {
+      const uri = songInput.value.trim();
+      const addedBy = (nameInput.value || "anonymous").trim();
+
+      if (!sessionCode) {
+        statusEl.textContent = "Missing sessionCode in URL. Scan the driver QR again.";
+        return;
+      }
+
+      if (!uri) {
+        statusEl.textContent = "Paste a Spotify track link (not a song name).";
+        return;
+      }
+
+      if (!looksLikeSpotifyTrack(uri)) {
+        statusEl.textContent = "That doesn’t look like a Spotify track link. Open Spotify → Share → Copy link.";
+        return;
+      }
+
+      try {
+        statusEl.textContent = "Adding…";
+
+        const res = await fetch(`${API_BASE}/api/sessions/${encodeURIComponent(sessionCode)}/queue`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ uri: uri, addedBy: addedBy })
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          statusEl.textContent = (data && data.error) ? data.error : "Failed to add song.";
+          return;
+        }
+
+        statusEl.textContent = "Added ✅";
+        songInput.value = "";
+      } catch (e) {
+        statusEl.textContent = "Failed to fetch. Is the server running and reachable?";
+      }
+    }
+
+    addBtn.addEventListener("click", addSong);
+  </script>
+</body>
+</html>

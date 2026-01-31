@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Driver</title>
+</head>
+<body>
+  <h1>Driver Console</h1>
+
+  <h3>Scan to Add Music</h3>
+  <div id="qr"></div>
+
+  <p><strong>Session:</strong> <span id="sessionText"></span></p>
+
+  <h2>Now Playing</h2>
+  <p id="currentSong">Nothing yet</p>
+
+  <!-- QR code library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <!-- Firebase (Realtime Database) -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+  <script>
+    // ✅ Session (static for now — we’ll randomize later)
+    const sessionId = "car-123";
+    document.getElementById("sessionText").innerText = sessionId;
+
+    // ✅ QR points to passenger with the same session
+    const passengerURL =
+      "http://127.0.0.1:5500/passenger.html?session=" + sessionId;
+
+    new QRCode(document.getElementById("qr"), {
+      text: passengerURL,
+      width: 220,
+      height: 220
+    });
+
+    // -----------------------------
+    // 🔥 FIREBASE REALTIME SYNC
+    // -----------------------------
+    // 🔴 REPLACE THESE with your firebaseConfig from Project Settings
+    const firebaseConfig = {
+        apiKey: "AIzaSyB7wOW9AlejnIoCQQXNJmp5CKpYZ9KU2qQ",
+        authDomain: "uber-music-app.firebaseapp.com",
+        databaseURL: "https://uber-music-app-default-rtdb.firebaseio.com",
+        projectId: "uber-music-app",
+        storageBucket: "uber-music-app.firebasestorage.app",
+        messagingSenderId: "410356499349",
+        appId: "1:410356499349:web:3385fc9f9b9af11c69ac9c",
+        measurementId: "G-HG6YHRQTEH"
+    };
+
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // Listen for currentSong changes
+    db.ref("sessions/" + sessionId + "/currentSong")
+      .on("value", (snapshot) => {
+        const song = snapshot.val();
+        document.getElementById("currentSong").innerText =
+          song ? song : "Nothing yet";
+      });
+  </script>
+</body>
+</html>
